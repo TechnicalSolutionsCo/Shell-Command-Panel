@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Command Panel — Windows Shell &amp; Node.js</title>
+<style>
+  :root{
+    --navy: #0B2545;
+    --navy-deep: #071b36;
+    --blue-line: #4FA8D8;
+    --blue-line-dim: rgba(79,168,216,0.35);
+    --paper: #EDE6D6;
+    --paper-dim: #E3DBC8;
+    --ink: #142C4B;
+    --amber: #E8A33D;
+    --green-ok: #6FCF97;
+    --mono: 'Cascadia Code','Consolas','SFMono-Regular',Menlo,monospace;
+    --sans: 'Segoe UI',system-ui,-apple-system,sans-serif;
+  }
+
+  *{box-sizing:border-box;}
+
+  body{
+    margin:0;
+    background:
+      linear-gradient(var(--blue-line-dim) 1px, transparent 1px) 0 0/40px 40px,
+      linear-gradient(90deg, var(--blue-line-dim) 1px, transparent 1px) 0 0/40px 40px,
+      var(--navy);
+    color: var(--paper);
+    font-family: var(--sans);
+    min-height:100vh;
+    padding-bottom: 140px;
+  }
+
+  header{
+    padding: 48px 32px 24px;
+    border-bottom: 1px solid var(--blue-line-dim);
+  }
+
+  .eyebrow{
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--blue-line);
+    margin: 0 0 10px;
+  }
+
+  h1{
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: clamp(28px, 4vw, 42px);
+    margin: 0 0 8px;
+    letter-spacing: -0.5px;
+  }
+
+  header p{
+    max-width: 640px;
+    color: rgba(237,230,214,0.7);
+    font-size: 15px;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  .tabs{
+    display:flex;
+    gap: 8px;
+    padding: 24px 32px 0;
+    flex-wrap: wrap;
+  }
+
+  .tab-btn{
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 1px;
+    background: transparent;
+    color: var(--blue-line);
+    border: 1px solid var(--blue-line-dim);
+    border-radius: 4px 4px 0 0;
+    padding: 10px 18px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .tab-btn:hover{ background: rgba(79,168,216,0.1); }
+
+  .tab-btn.active{
+    background: var(--paper);
+    color: var(--ink);
+    border-color: var(--paper);
+    font-weight: 600;
+  }
+
+  main{ padding: 0 32px 32px; }
+
+  .panel{ display:none; }
+  .panel.active{ display:block; }
+
+  .grid{
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 18px;
+    padding-top: 24px;
+  }
+
+  .card{
+    position: relative;
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 2px;
+    padding: 18px 18px 16px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+  }
+
+  .card::before, .card::after{
+    content:"";
+    position:absolute;
+    width: 10px; height: 10px;
+    border: 1.5px solid var(--ink);
+    opacity: 0.35;
+  }
+  .card::before{ top:6px; left:6px; border-right:none; border-bottom:none; }
+  .card::after{ bottom:6px; right:6px; border-left:none; border-top:none; }
+
+  .cmd-row{
+    display:flex;
+    align-items:center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .cmd{
+    font-family: var(--mono);
+    font-size: 14.5px;
+    font-weight: 600;
+    background: var(--navy);
+    color: #BFE4FF;
+    padding: 8px 10px;
+    border-radius: 3px;
+    overflow-x: auto;
+    white-space: nowrap;
+    flex: 1;
+  }
+
+  .copy-btn{
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    background: var(--ink);
+    color: var(--paper);
+    border: none;
+    border-radius: 3px;
+    padding: 9px 12px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s, transform 0.1s;
+  }
+
+  .copy-btn:hover{ background: #0d203a; }
+  .copy-btn:active{ transform: scale(0.96); }
+  .copy-btn.copied{ background: var(--green-ok); color: var(--ink); }
+
+  .explain{
+    margin-top: 10px;
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: rgba(20,44,75,0.85);
+  }
+
+  .cat-label{
+    display:inline-block;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 1px;
+    color: var(--amber);
+    background: rgba(232,163,61,0.12);
+    border: 1px solid rgba(232,163,61,0.4);
+    padding: 2px 7px;
+    border-radius: 2px;
+    margin-bottom: 10px;
+  }
+
+  /* session log terminal */
+  .terminal{
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: #050d1a;
+    border-top: 1px solid var(--blue-line-dim);
+    max-height: 130px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .terminal-bar{
+    display:flex;
+    align-items:center;
+    gap: 8px;
+    padding: 7px 14px;
+    background: var(--navy-deep);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: rgba(237,230,214,0.55);
+  }
+
+  .dot{ width:9px; height:9px; border-radius:50%; }
+  .dot.r{ background:#E85D5D; }
+  .dot.y{ background:#E8C33D; }
+  .dot.g{ background:#6FCF97; }
+
+  .terminal-title{ margin-left: 6px; }
+  .terminal-clear{
+    margin-left: auto;
+    background: none;
+    border: 1px solid rgba(237,230,214,0.25);
+    color: rgba(237,230,214,0.6);
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  .terminal-clear:hover{ color: var(--paper); border-color: var(--paper); }
+
+  .terminal-log{
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--green-ok);
+    padding: 6px 14px 12px;
+    overflow-y: auto;
+    flex: 1;
+  }
+
+  .terminal-log .empty{ color: rgba(111,207,151,0.4); }
+  .terminal-log div{ margin-bottom: 3px; white-space: pre-wrap; word-break: break-all; }
+  .terminal-log .prompt{ color: var(--blue-line); }
+
+  @media (max-width: 520px){
+    .cmd{ font-size: 13px; }
+    header, .tabs, main{ padding-left: 18px; padding-right: 18px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <p class="eyebrow">Command Panel · Click to Copy</p>
+  <h1>Windows Shell &amp; Node.js, one click away</h1>
+  <p>The commands you reach for most often, with a plain-English note on what each one does. Click a command to copy it, then paste it into your terminal. Nothing here runs automatically — you stay at the keyboard.</p>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" data-panel="shell">C:\&gt; Windows Shell</button>
+  <button class="tab-btn" data-panel="node">$ Node.js &amp; npm</button>
+</div>
+
+<main>
+  <section class="panel active" id="panel-shell">
+    <div class="grid" id="grid-shell"></div>
+  </section>
+  <section class="panel" id="panel-node">
+    <div class="grid" id="grid-node"></div>
+  </section>
+</main>
+
+<div class="terminal">
+  <div class="terminal-bar">
+    <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+    <span class="terminal-title">session log</span>
+    <button class="terminal-clear" id="clearLog">clear</button>
+  </div>
+  <div class="terminal-log" id="log">
+    <div class="empty">Nothing copied yet — click any command above.</div>
+  </div>
+</div>
+
+<script>
+const data = {
+  shell: [
+    { cat: "Navigate", cmd: "dir", note: "Lists files and folders in the current directory." },
+    { cat: "Navigate", cmd: "cd ..", note: "Moves up one folder level." },
+    { cat: "Navigate", cmd: "cls", note: "Clears the terminal screen." },
+    { cat: "Files", cmd: "mkdir new-folder", note: "Creates a new folder." },
+    { cat: "Files", cmd: "copy source.txt dest.txt", note: "Copies a file to a new location or name." },
+    { cat: "Files", cmd: "del filename.txt", note: "Deletes a file permanently (no recycle bin)." },
+    { cat: "Files", cmd: "where node", note: "Finds the full path of an executable on your PATH." },
+    { cat: "PowerShell", cmd: "Get-ChildItem -Recurse", note: "Lists files in the current folder and all subfolders." },
+    { cat: "PowerShell", cmd: "Get-Process", note: "Shows all currently running processes." },
+    { cat: "PowerShell", cmd: "Remove-Item -Recurse -Force folder", note: "Deletes a folder and everything inside it, no confirmation." },
+    { cat: "Network", cmd: "ipconfig /all", note: "Shows detailed network configuration for all adapters." },
+    { cat: "Network", cmd: "ping 8.8.8.8", note: "Tests connectivity to an address and shows response time." },
+    { cat: "Network", cmd: "netstat -ano", note: "Lists active network connections and the process ID using each." },
+    { cat: "System", cmd: "systeminfo", note: "Prints OS version, memory, and hardware summary." },
+    { cat: "System", cmd: "tasklist", note: "Lists all running processes with their process IDs." },
+    { cat: "System", cmd: "taskkill /PID 1234 /F", note: "Force-closes a process using its process ID." },
+    { cat: "System", cmd: "echo %PATH%", note: "Prints the current PATH environment variable." },
+    { cat: "System", cmd: "shutdown /r /t 0", note: "Restarts the computer immediately." }
+  ],
+  node: [
+    { cat: "Setup", cmd: "node -v", note: "Prints the installed Node.js version." },
+    { cat: "Setup", cmd: "npm -v", note: "Prints the installed npm version." },
+    { cat: "Setup", cmd: "npm init -y", note: "Creates a package.json with default values, no prompts." },
+    { cat: "Packages", cmd: "npm install", note: "Installs every dependency listed in package.json." },
+    { cat: "Packages", cmd: "npm install express", note: "Adds a package to your project and saves it to package.json." },
+    { cat: "Packages", cmd: "npm install -g nodemon", note: "Installs a package globally, available from any project." },
+    { cat: "Packages", cmd: "npm uninstall express", note: "Removes a package from your project and package.json." },
+    { cat: "Packages", cmd: "npm update", note: "Updates installed packages to the latest allowed version." },
+    { cat: "Packages", cmd: "npm outdated", note: "Lists installed packages that have newer versions available." },
+    { cat: "Run", cmd: "node app.js", note: "Runs a JavaScript file directly with Node." },
+    { cat: "Run", cmd: "npm start", note: "Runs the 'start' script defined in package.json." },
+    { cat: "Run", cmd: "npm run build", note: "Runs any custom script, here named 'build', from package.json." },
+    { cat: "Run", cmd: "npm test", note: "Runs the 'test' script, typically your test suite." },
+    { cat: "Run", cmd: "npx create-react-app my-app", note: "Runs a package once without installing it globally first." },
+    { cat: "Maintenance", cmd: "npm list -g --depth=0", note: "Shows top-level packages installed globally." },
+    { cat: "Maintenance", cmd: "npm cache clean --force", note: "Clears npm's local cache, useful when installs misbehave." }
+  ]
+};
+
+function buildGrid(panelKey){
+  const grid = document.getElementById('grid-' + panelKey);
+  data[panelKey].forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <span class="cat-label">${item.cat}</span>
+      <div class="cmd-row">
+        <code class="cmd">${item.cmd}</code>
+        <button class="copy-btn">COPY</button>
+      </div>
+      <p class="explain">${item.note}</p>
+    `;
+    const btn = card.querySelector('.copy-btn');
+    btn.addEventListener('click', () => copyCommand(item.cmd, btn, panelKey));
+    grid.appendChild(card);
+  });
+}
+
+buildGrid('shell');
+buildGrid('node');
+
+function copyCommand(cmd, btn, panelKey){
+  const finish = (ok) => {
+    btn.textContent = ok ? 'COPIED' : 'FAILED';
+    btn.classList.toggle('copied', ok);
+    setTimeout(() => { btn.textContent = 'COPY'; btn.classList.remove('copied'); }, 1400);
+    if (ok) appendLog(cmd, panelKey);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(cmd).then(() => finish(true)).catch(() => finish(false));
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = cmd;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); finish(true); } catch(e){ finish(false); }
+    document.body.removeChild(ta);
+  }
+}
+
+const logEl = document.getElementById('log');
+let logCount = 0;
+function appendLog(cmd, panelKey){
+  if (logCount === 0) logEl.innerHTML = '';
+  const prompt = panelKey === 'shell' ? 'C:\\Users\\you&gt;' : '$';
+  const line = document.createElement('div');
+  line.innerHTML = `<span class="prompt">${prompt}</span> ${cmd} <span style="opacity:0.5">— copied to clipboard</span>`;
+  logEl.appendChild(line);
+  logEl.scrollTop = logEl.scrollHeight;
+  logCount++;
+}
+
+document.getElementById('clearLog').addEventListener('click', () => {
+  logEl.innerHTML = '<div class="empty">Nothing copied yet — click any command above.</div>';
+  logCount = 0;
+});
+
+document.querySelectorAll('.tab-btn').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('panel-' + tab.dataset.panel).classList.add('active');
+  });
+});
+</script>
+
+</body>
+</html>
